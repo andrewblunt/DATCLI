@@ -8,7 +8,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Script Build Information
-$ScriptRelease = "2.3.0"
+$ScriptRelease = "2.4.0"
 $ScriptBuildDate = "2026-03-27"
 
 # Hash Tables
@@ -4937,23 +4937,19 @@ function Rename-DriverPackages {
     .PARAMETER Make
         OEM filter: Lenovo, Dell, HP, Microsoft, Custom, or All.
     .PARAMETER OSName
-        Optional OS family filter (Windows 10 / Windows 11). If omitted, prompt.
+        Optional OS family filter (Windows 10 / Windows 11 / All). If omitted, prompt.
     .PARAMETER TargetOSVersion
         Target OS version token (for example 22H2, 23H2, 24H2, or 2025).
-    .PARAMETER AllPackagesForMake
-        Rename all parsed packages in scope regardless of current OS family.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [ValidateSet("Lenovo", "Dell", "HP", "Microsoft", "Custom", "All")]
         [string]$Make = "All",
 
-        [ValidateSet("Windows 10", "Windows 11")]
+        [ValidateSet("Windows 10", "Windows 11", "All")]
         [string]$OSName,
 
-        [string]$TargetOSVersion,
-
-        [switch]$AllPackagesForMake
+        [string]$TargetOSVersion
     )
 
     Write-LogEntry -Value "======== Starting Rename-DriverPackages ========" -Severity 1
@@ -4994,55 +4990,26 @@ function Rename-DriverPackages {
     Select-Object PackageID, Manufacturer, OSName, OSVersion, Architecture, Name |
     Format-Table -AutoSize
 
-    $scopeAll = $AllPackagesForMake.IsPresent
     $effectiveOSName = $OSName
 
-    if (-not $PSBoundParameters.ContainsKey('AllPackagesForMake') -and -not $PSBoundParameters.ContainsKey('OSName')) {
+    if (-not $effectiveOSName) {
         Write-Host ""
-        Write-Host "  Rename scope:" -ForegroundColor Cyan
-        Write-Host "    [1] One OS family only"
-        Write-Host "    [2] All listed packages"
+        Write-Host "  Select OS family:" -ForegroundColor Cyan
+        Write-Host "    [1] Windows 10"
+        Write-Host "    [2] Windows 11"
+        Write-Host "    [3] All"
         Write-Host "    [B] Cancel"
-        $scopeChoice = Read-Host "  Selection"
-        switch ($scopeChoice.ToUpper()) {
-            "1" { $scopeAll = $false }
-            "2" { $scopeAll = $true }
+        $osChoice = Read-Host "  Selection"
+        switch ($osChoice.ToUpper()) {
+            "1" { $effectiveOSName = "Windows 10" }
+            "2" { $effectiveOSName = "Windows 11" }
+            "3" { $effectiveOSName = "All" }
             "B" { return }
             default {
                 Write-Host "  Invalid selection. Rename cancelled." -ForegroundColor Yellow
                 return
             }
         }
-    }
-    elseif ($PSBoundParameters.ContainsKey('OSName')) {
-        $scopeAll = $false
-    }
-
-    if (-not $scopeAll -and -not $effectiveOSName) {
-        $availableOs = @($candidates.OSName | Where-Object { $_ } | Sort-Object -Unique)
-        if (-not $availableOs -or $availableOs.Count -eq 0) {
-            Write-Host "  No OS family values were parsed from package names. Rename cancelled." -ForegroundColor Yellow
-            return
-        }
-
-        Write-Host ""
-        Write-Host "  Select OS family to rename:" -ForegroundColor Cyan
-        for ($i = 0; $i -lt $availableOs.Count; $i++) {
-            Write-Host "    [$($i + 1)] $($availableOs[$i])"
-        }
-        Write-Host "    [B] Cancel"
-        $osChoice = Read-Host "  Selection"
-        if ($osChoice.ToUpper() -eq "B") { return }
-        if ($osChoice -notmatch '^\d+$') {
-            Write-Host "  Invalid selection. Rename cancelled." -ForegroundColor Yellow
-            return
-        }
-        $osIndex = [int]$osChoice - 1
-        if ($osIndex -lt 0 -or $osIndex -ge $availableOs.Count) {
-            Write-Host "  Selection out of range. Rename cancelled." -ForegroundColor Yellow
-            return
-        }
-        $effectiveOSName = $availableOs[$osIndex]
     }
 
     if (-not $TargetOSVersion) {
@@ -5056,7 +5023,7 @@ function Rename-DriverPackages {
     }
     $TargetOSVersion = $TargetOSVersion.Trim().ToUpper()
 
-    $selected = if ($scopeAll) {
+    $selected = if ($effectiveOSName -eq "All") {
         $candidates
     }
     else {
@@ -5809,7 +5776,6 @@ function Start-DATCLI {
         Write-Host "    [3] Create Custom Driver Package"
         Write-Host "    [4] Browse Packages"
         Write-Host "    [5] Settings"
-        Write-Host "    [6] Rename Driver Packages"
         Write-Host "    [Q] Quit"
         Write-Host ""
         Write-Host "  ==============================================" -ForegroundColor DarkCyan
@@ -5890,7 +5856,7 @@ function Start-DATCLI {
             "4" {
                 $pkgMenuLoop = $true
                 while ($pkgMenuLoop) {
-                    $pkgChoice = Show-SubMenu -Title "Browse Packages" -Items @("Browse Packages", "Check for Updates") -Breadcrumb "Browse Packages"
+                    $pkgChoice = Show-SubMenu -Title "Browse Packages" -Items @("Browse Packages", "Check for Updates", "Rename Packages") -Breadcrumb "Browse Packages"
                     if ($pkgChoice -eq "1") {
                         $filterLoop = $true
                         while ($filterLoop) {
@@ -5918,6 +5884,17 @@ function Start-DATCLI {
                         Write-Host ""
                         Update-Packages -HighlightUpdates
                         Read-Host "  Press Enter to continue"
+                    }
+                    elseif ($pkgChoice -eq "3") {
+                        Write-Host ""
+                        Write-Host "  Starting package rename workflow..." -ForegroundColor Green
+                        Write-Host ""
+                        $renameMakeChoice = Show-SubMenu -Title "Rename Packages - Filter by OEM" -Items @("All Manufacturers", "Lenovo", "Dell", "HP", "Microsoft", "Custom") -Breadcrumb "Browse Packages > Rename > Filter"
+                        if ($renameMakeChoice -match '^[1-6]$') {
+                            $renameMakeMap = @{ "1" = "All"; "2" = "Lenovo"; "3" = "Dell"; "4" = "HP"; "5" = "Microsoft"; "6" = "Custom" }
+                            Rename-DriverPackages -Make $renameMakeMap[$renameMakeChoice]
+                            Read-Host "  Press Enter to continue"
+                        }
                     }
                     elseif ($pkgChoice -eq "B") {
                         $pkgMenuLoop = $false
@@ -5977,17 +5954,6 @@ function Start-DATCLI {
                     Find-MicrosoftModel -Model "*" | Out-Null
                     Write-Host ""
                     Write-Host "  All catalogs refreshed." -ForegroundColor Green
-                    Read-Host "  Press Enter to continue"
-                }
-            }
-            "6" {
-                Write-Host ""
-                Write-Host "  Starting package rename workflow..." -ForegroundColor Green
-                Write-Host ""
-                $renameMakeChoice = Show-SubMenu -Title "Rename Packages - Filter by OEM" -Items @("All Manufacturers", "Lenovo", "Dell", "HP", "Microsoft", "Custom") -Breadcrumb "Rename Packages > Filter"
-                if ($renameMakeChoice -match '^[1-6]$') {
-                    $renameMakeMap = @{ "1" = "All"; "2" = "Lenovo"; "3" = "Dell"; "4" = "HP"; "5" = "Microsoft"; "6" = "Custom" }
-                    Rename-DriverPackages -Make $renameMakeMap[$renameMakeChoice]
                     Read-Host "  Press Enter to continue"
                 }
             }
