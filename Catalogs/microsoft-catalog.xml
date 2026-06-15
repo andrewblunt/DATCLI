@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">
+    <Obj RefId="0">
+        <TN RefId="0">
+            <T>System.Management.Automation.PSCustomObject</T>
+            <T>System.Object</T>
+        </TN>
+        <MS>
+            <S N="CatalogVersion">26.041.14362.0</S>
+            <Nil N="Status" />
+            <S N="Component">DriverPack</S>
+            <S N="ReleaseDate">15.06.2026</S>
+            <S N="Manufacturer">Microsoft</S>
+            <S N="Model">Surface Pro 12-inch 1st Edition</S>
+            <S N="Product">Surface_Pro_12in_1st_Edition</S>
+            <S N="Name">Microsoft Surface Pro 12-inch 1st Edition Win11 24H2 ARM64</S>
+            <B N="Legacy">false</B>
+            <S N="PackageID"></S>
+            <S N="FileName">SurfacePro_12in_1st_Edition_Win11_26100_26.041.14362.0.msi</S>
+            <S N="Url">https://download.microsoft.com/download/3f42130f-64d6-4a85-8a18-ec1b70f5ef82/SurfacePro_12in_1st_Edition_Win11_26100_26.041.14362.0.msi</S>
+            <S N="OSVersion">Windows 11 arm64</S>
+            <S N="OSReleaseId">24H2</S>
+            <S N="OSBuild">26100</S>
+            <S N="OSArchitecture">arm64</S>
+            <S N="HashMD5"></S>
+        </MS>
+    </Obj>
+</Objs>
